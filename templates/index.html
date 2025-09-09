@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gemini ChatBot</title>
+<style>
+  :root {
+    --primary-color: #010509;
+    --secondary-color: #1a3333;
+    --user-bg: #e0f7fa;
+    --bot-bg: #fffdfd;
+    --text-color: #333;
+    --border-radius: 12px;
+  }
+
+  body {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    font-family: 'Poppins', sans-serif;
+    margin: 0;
+    padding: 0;
+    color: var(--text-color);
+  }
+
+  .container {
+    width: 550px;
+    height: 660px;
+    margin: 40px auto;
+    background: #ecf1f5dd;
+    border-radius: var(--border-radius);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: fadeIn 0.5s ease;
+  }
+
+  h1 {
+    background: var(--primary-color);
+    color: #9a96a4;
+    margin: 0;
+    padding: 20px;
+    text-align: center;
+    font-size: 1.6em;
+    border-top-left-radius: var(--border-radius);
+    border-top-right-radius: var(--border-radius);
+  }
+
+  .language-selection {
+    background: #f0f4f8;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid #e0e0e0;
+  }
+
+  .language-selection label {
+    font-weight: 600;
+    color: #444;
+  }
+
+  .language-selection select {
+    padding: 6px 10px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: var(--border-radius);
+    outline: none;
+    background: #fff;
+  }
+
+  .messages {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  max-height: 1500px; /* Increased from 400px to 500px */
+  background: #f9f9f9;
+}
+
+
+  .user-message, .bot-message {
+    margin-bottom: 15px;
+    padding: 12px 16px;
+    border-radius: var(--border-radius);
+    max-width: 75%;
+    word-wrap: break-word;
+    transition: transform 0.3s ease;
+  }
+
+  .user-message {
+    background: var(--user-bg);
+    align-self: flex-end;
+  }
+
+  .bot-message {
+    background: var(--bot-bg);
+    align-self: flex-start;
+  }
+
+  .input-area {
+    display: flex;
+    border-top: 1px solid #ddd;
+    align-items: center;
+    background: #fff;
+  }
+
+  .input-area textarea {
+    flex: 1;
+    border: none;
+    padding: 15px;
+    font-size: 15px;
+    resize: none;
+    height: 50px;
+    outline: none;
+    border-radius: 0;
+  }
+
+  .input-area button {
+    background: var(--primary-color);
+    color: #fff;
+    border: none;
+    padding: 0 20px;
+    cursor: pointer;
+    font-weight: 500;
+    height: 46px;
+    transition: background 0.3s ease;
+  }
+
+  .input-area button:hover {
+    background: #005bb5;
+  }
+
+  .mic-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    margin:  8px;
+    height: 50px;
+    width: 60px;
+  }
+
+  .mic-btn img {
+    width: 24px;
+    height: 24px;
+    filter: brightness(0) invert(0.7);
+  }
+
+  .messages::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .messages::-webkit-scrollbar-thumb {
+    background: rgba(0,0,0,0.2);
+    border-radius: 3px;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>Gemini ChatBot</h1>
+    <div class="language-selection">
+      <label for="language">Language:</label>
+      <select id="language">
+        <option value="te">Telugu</option>
+        <option value="hi">Hindi</option>
+        <option value="fr">French</option>
+        <option value="ta">Tamil</option>
+        <option value="de">German</option>
+        <option value="en">English</option>
+      </select>
+    </div>
+
+    <div class="messages" id="messages"></div>
+
+    <div class="input-area">
+      <button class="mic-btn" onclick="startVoiceInput()">
+        <img src="C:/Users/HP/Desktop/My Projects/object-detection/microphone-black-shape.png" alt="Mic">
+      </button>
+      <textarea id="user-input" placeholder="Type or speak your message..."></textarea>
+      <button onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+
+<script>
+async function sendMessage() {
+  const userInput = document.getElementById('user-input').value.trim();
+  const lang = document.getElementById('language').value;
+
+  if (!userInput) return;
+
+  const messages = document.getElementById('messages');
+
+  const userMsg = document.createElement('div');
+  userMsg.className = 'user-message';
+  userMsg.innerHTML = `<strong>You:</strong> ${userInput}`;
+  messages.appendChild(userMsg);
+
+  document.getElementById('user-input').value = '';
+
+  const response = await fetch('/ask', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ question: userInput, lang: lang })
+  });
+
+  const data = await response.json();
+
+  const botMsg = document.createElement('div');
+  botMsg.className = 'bot-message';
+  botMsg.innerHTML = `<strong>Gemini:</strong> ${data.answer}`;
+  messages.appendChild(botMsg);
+
+  const audio = new Audio(data.audio_url);
+  audio.play();
+
+  messages.scrollTop = messages.scrollHeight;
+}
+
+function startVoiceInput() {
+  if (!('webkitSpeechRecognition' in window)) {
+    alert('Voice recognition not supported. Please use Chrome browser!');
+    return;
+  }
+
+  const recognition = new webkitSpeechRecognition();
+  recognition.lang = 'en-US';
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+
+  recognition.start();
+
+  recognition.onresult = function(event) {
+    const transcript = event.results[0][0].transcript;
+    document.getElementById('user-input').value = transcript;
+  };
+
+  recognition.onerror = function(event) {
+    console.error('Speech recognition error:', event.error);
+  };
+}
+</script>
+</body>
+</html>
