@@ -1,44 +1,50 @@
-from flask import Flask, render_template, request, jsonify
+import os
+
+from flask import Flask, jsonify, render_template, request
 from googletrans import Translator
 import google.generativeai as genai
 
 app = Flask(__name__)
-
-# Configure Gemini API
-genai.configure(api_key="AIzaSyCtO-IMk2xMXBT9-eROp-HLnaNzTJ8oPuc")  # Replace with your Gemini key
-
-# Initialize Translator
 translator = Translator()
 
-@app.route('/')
-def index():
-    return render_template('index.html')
 
-@app.route('/ask', methods=['POST'])
+def get_model():
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise RuntimeError("GEMINI_API_KEY is not configured")
+    genai.configure(api_key=api_key)
+    return genai.GenerativeModel(os.getenv("GEMINI_MODEL", "gemini-1.5-flash"))
+
+
+@app.route("/")
+def index():
+    return render_template("index.html")
+
+
+@app.route("/ask", methods=["POST"])
 def ask_gemini():
-    data = request.json
-    question = data.get('question')
-    lang_code = data.get('lang')
+    data = request.get_json(silent=True) or {}
+    question = str(data.get("question", "")).strip()
+    lang_code = str(data.get("lang", "en")).strip() or "en"
+
+    if not question:
+        return jsonify({"error": "question is required"}), 400
 
     try:
-        # Gemini model
-        model = genai.GenerativeModel("gemini-1.5-flash")
-        response = model.generate_content(question)
-        answer_english = response.text.strip()
+        response = get_model().generate_content(question)
+        answer = (response.text or "").strip()
+        translated = translator.translate(answer, src="en", dest=lang_code).text
+        return jsonify({"answer": translated})
+    except RuntimeError as error:
+        return jsonify({"error": str(error)}), 503
+    except Exception:
+        app.logger.exception("The assistant request failed")
+        return jsonify({"error": "The assistant request failed"}), 502
 
-        # Translate response
-        translation = translator.translate(answer_english, src='en', dest=lang_code)
-        translated_response = translation.text
 
-        return jsonify({
-            'answer': translated_response
-        })
-
-    except Exception as e:
-        print("❌ Error in /ask:", e)
-        return jsonify({
-            'answer': f"Error: {str(e)}"
-        })
-
-if __name__ == '__main__':
-    app.run(debug=True)
+if __name__ == "__main__":
+    app.run(
+        host="0.0.0.0",
+        port=int(os.getenv("PORT", "5000")),
+        debug=os.getenv("FLASK_DEBUG", "0") == "1",
+    )
